@@ -8,6 +8,22 @@ Live smoke tests cover browser login, listing, pagination, field selection,
 fetching, exact text output, history, search, creation, dry-run, updates, stale
 edit refusal, trash/restore, and export. Automated tests use isolated fixtures.
 
+## Install
+
+Cargo and PyPI packages install the same native Rust executable. Maturin builds
+the PyPI package, which has no Python runtime dependencies.
+
+```sh
+uv tool install simplenote-cli
+# Or: pipx install simplenote-cli
+cargo install simplenote-cli --locked
+```
+
+PyPI support starts with 0.1.1. For 0.1.0, use Cargo or the
+[GitHub binaries](https://github.com/rvben/simplenote-cli/releases).
+Wheels cover Linux x64 and ARM64 (glibc 2.28+), macOS x64 and ARM64, and Windows
+x64. Installing a source distribution requires Rust 1.90 or newer.
+
 ## Build
 
 Requires Rust 1.90 or newer:
@@ -16,8 +32,6 @@ Requires Rust 1.90 or newer:
 cargo build --release --locked
 cargo install --path . --locked
 ```
-
-No packages or releases have been published yet.
 
 ## Login
 

@@ -1,4 +1,4 @@
-.PHONY: build release test lint fmt check conformance clean install release-patch release-minor release-major update-deps
+.PHONY: build release test lint fmt check conformance package-check clean install release-patch release-minor release-major update-deps
 
 build:
 	cargo build --locked
@@ -40,3 +40,7 @@ release-minor:
 
 release-major:
 	vership bump major --prepare
+
+# Build the wheel from its sdist, validate metadata, and test an isolated install.
+package-check:
+	uv run --no-project python scripts/check-python-package.py

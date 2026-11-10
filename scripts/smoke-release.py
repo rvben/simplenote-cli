@@ -1,0 +1,49 @@
+"""Check an installed distribution without credentials or network access."""
+
+import json
+import os
+from pathlib import Path
+import subprocess
+import sys
+import tempfile
+
+
+def main():
+    binary = str(Path(sys.argv[1]).resolve())
+    version = sys.argv[2]
+    with tempfile.TemporaryDirectory(prefix="simplenote-package-smoke-") as directory:
+        environment = os.environ.copy()
+        environment.pop("SIMPLENOTE_TOKEN", None)
+        environment["SIMPLENOTE_CONFIG_DIR"] = directory
+
+        def run(*arguments, exit_code=0):
+            result = subprocess.run(
+                [binary, *arguments], env=environment, stdin=subprocess.DEVNULL,
+                capture_output=True, text=True, timeout=20,
+            )
+            if result.returncode != exit_code:
+                raise RuntimeError("installed CLI returned an unexpected exit code")
+            if exit_code:
+                if result.stdout:
+                    raise RuntimeError("failed command polluted stdout")
+                return result.stderr
+            if result.stderr:
+                raise RuntimeError("successful command polluted stderr")
+            return result.stdout
+
+        if run("--version").strip() != "simplenote-cli " + version:
+            raise RuntimeError("installed CLI version differs from package metadata")
+        schema = json.loads(run("schema"))
+        if schema["clispec"] != "0.3":
+            raise RuntimeError("installed CLI discovery contract changed")
+        status = json.loads(run("-o", "json", "auth", "status"))
+        if status["authenticated"] is not False:
+            raise RuntimeError("smoke test borrowed credentials")
+        error = json.loads(run("-o", "json", "notes", "list", exit_code=3))
+        if error["error"]["kind"] != "auth":
+            raise RuntimeError("missing credentials did not produce an auth error")
+    print(json.dumps({"version": version, "installed_package_smoke": "passed"}))
+
+
+if __name__ == "__main__":
+    main()

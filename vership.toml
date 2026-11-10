@@ -6,3 +6,6 @@ lint = true
 tests = true
 lint_command = "make lint"
 test_command = "make test"
+
+[verify]
+targets = ["tag", "release", "crates", "pypi"]

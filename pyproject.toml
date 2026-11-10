@@ -1,0 +1,29 @@
+[build-system]
+requires = ["maturin>=1.8,<2.0"]
+build-backend = "maturin"
+
+[project]
+name = "simplenote-cli"
+dynamic = ["version"]
+description = "A scriptable Simplenote CLI for humans and agents"
+readme = "README.md"
+requires-python = ">=3.8"
+license = "MIT"
+classifiers = [
+    "Environment :: Console",
+    "Programming Language :: Rust",
+    "Programming Language :: Python :: 3",
+]
+dependencies = []
+
+[project.urls]
+Homepage = "https://github.com/rvben/simplenote-cli"
+Repository = "https://github.com/rvben/simplenote-cli"
+Issues = "https://github.com/rvben/simplenote-cli/issues"
+Changelog = "https://github.com/rvben/simplenote-cli/blob/main/CHANGELOG.md"
+
+[tool.maturin]
+bindings = "bin"
+manifest-path = "Cargo.toml"
+strip = true
+exclude = ["DESIGN.md", ".impeccable/**"]
