@@ -88,3 +88,55 @@ fn help_and_completions_work_offline() {
         assert!(out.stderr.is_empty());
     }
 }
+
+#[test]
+fn tui_requires_a_terminal_but_demo_snapshot_is_offline_opaque_text() {
+    for args in [vec!["tui"], vec!["tui", "--demo"]] {
+        let output = run(&args);
+        assert_eq!(output.status.code(), Some(12));
+        assert!(output.stdout.is_empty());
+        assert_eq!(parse(&output.stderr)["error"]["kind"], "tty_required");
+    }
+    let output = run(&[
+        "tui",
+        "--demo",
+        "--snapshot",
+        "--width",
+        "60",
+        "--height",
+        "24",
+    ]);
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(output.stderr.is_empty());
+    let text = String::from_utf8(output.stdout).unwrap();
+    assert_eq!(text.lines().count(), 24);
+    assert!(text.contains("simplenote"));
+    assert!(text.contains("q quit"));
+    assert!(!text.contains('\u{1b}'));
+    let schema = parse(&run(&["schema"]).stdout);
+    let tui = schema["commands"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|c| c["name"] == "tui")
+        .unwrap();
+    assert_eq!(tui["requires_tty"], true);
+    assert_eq!(tui["output_kind"], "opaque");
+}
+
+#[test]
+fn tui_snapshot_requires_demo_and_valid_geometry() {
+    for args in [
+        vec!["tui", "--snapshot"],
+        vec!["tui", "--demo", "--width", "90"],
+        vec!["tui", "--demo", "--snapshot", "--width", "0"],
+    ] {
+        let output = run(&args);
+        assert_eq!(output.status.code(), Some(2));
+        assert!(output.stdout.is_empty());
+    }
+}

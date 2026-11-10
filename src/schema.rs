@@ -27,6 +27,13 @@ fn walk(cmd: &clap::Command, prefix: &str, out: &mut Vec<Value>) {
             "effects": "read_only", "output_kind": "data", "cardinality": "single", "stability": "experimental",
             "args": sub.get_arguments().filter(|a| !a.is_global_set() && a.get_id() != "help").map(arg).collect::<Vec<_>>()});
         match path.as_str() {
+            "tui" => {
+                entry["effects"] = json!("non_idempotent");
+                entry["requires_tty"] = json!(true);
+                entry["output_kind"] = json!("opaque");
+                entry["media_type"] = json!("text/plain; charset=utf-8");
+                entry.as_object_mut().unwrap().remove("cardinality");
+            }
             "schema" => {
                 entry["stdout_schema"] =
                     json!({"type": "object", "required": ["clispec", "commands", "errors"]})
@@ -104,7 +111,10 @@ fn arg(a: &clap::Arg) -> Value {
     let id = a.get_id().as_str();
     let kind = if matches!(a.get_action(), ArgAction::SetTrue | ArgAction::SetFalse) {
         "boolean"
-    } else if matches!(id, "limit" | "base_version" | "version") {
+    } else if matches!(
+        id,
+        "limit" | "base_version" | "version" | "width" | "height"
+    ) {
         "integer"
     } else if matches!(a.get_action(), ArgAction::Append) {
         "string[]"

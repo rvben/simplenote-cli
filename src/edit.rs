@@ -161,6 +161,70 @@ fn wait_for_editor(editor: &mut Command) -> Result<std::process::ExitStatus, Err
     }
 }
 
+/// Compose a new note for the TUI, preserving the draft on every failed save.
+pub(crate) fn create(api: &Api<'_>, mut editor: Command) -> Result<Value, Error> {
+    let mut builder = tempfile::Builder::new();
+    builder.prefix("simplenote-edit-");
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        builder.permissions(std::fs::Permissions::from_mode(0o700));
+    }
+    let directory = builder.tempdir()?;
+    let path = directory.path().join("note.md");
+    let mut options = OpenOptions::new();
+    options.write(true).create_new(true);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        options.mode(0o600);
+    }
+    drop(options.open(&path)?);
+    let result = (|| {
+        editor
+            .arg(&path)
+            .env_remove("SIMPLENOTE_TOKEN")
+            .stdin(Stdio::inherit())
+            .stdout(Stdio::from(std::io::stderr()))
+            .stderr(Stdio::inherit());
+        if !wait_for_editor(&mut editor)?.success() {
+            return Err(Error::new(
+                "io",
+                "Editor exited unsuccessfully; nothing was written to the service.",
+            ));
+        }
+        let content = read_limited(open_draft(&path)?, 1024 * 1024)?;
+        if content.is_empty() {
+            return Ok((json!({"no_op":true}), false));
+        }
+        let content = read_note_content(content.as_bytes())?;
+        let response = api.create(&content, &[], false)?;
+        let keep =
+            response.get("note").unwrap_or(&response)["content"].as_str() != Some(content.as_str());
+        Ok((response, keep))
+    })();
+    match result {
+        Ok((mut response, true)) => {
+            let _ = directory.keep();
+            response["recovery_file"] = json!(path.to_string_lossy());
+            Ok(response)
+        }
+        Ok((response, false)) => Ok(response),
+        Err(mut error) => {
+            let _ = directory.keep();
+            let details = error.details.get_or_insert_with(|| json!({}));
+            details["recovery_file"] = json!(path.to_string_lossy());
+            details["recovery_directory"] =
+                json!(path.parent().expect("draft directory").to_string_lossy());
+            error.message.push_str(&format!(
+                " Editing files retained in {}.",
+                crate::cli::safe_text(&path.parent().expect("draft directory").to_string_lossy())
+            ));
+            Err(error)
+        }
+    }
+}
+
 #[cfg(unix)]
 mod interrupts {
     pub struct Guard {
@@ -261,6 +325,122 @@ fn open_draft(path: &Path) -> Result<File, Error> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    #[ignore]
+    fn new_note_editor_fixture() {
+        let path = std::path::PathBuf::from(std::env::args_os().last().unwrap());
+        assert!(std::env::var_os("SIMPLENOTE_TOKEN").is_none());
+        std::fs::write(
+            std::env::var_os("DRAFT_CAPTURE").unwrap(),
+            path.to_str().unwrap(),
+        )
+        .unwrap();
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            assert_eq!(
+                std::fs::metadata(&path).unwrap().permissions().mode() & 0o777,
+                0o600
+            );
+            assert_eq!(
+                std::fs::metadata(path.parent().unwrap())
+                    .unwrap()
+                    .permissions()
+                    .mode()
+                    & 0o777,
+                0o700
+            );
+        }
+        match std::env::var("DRAFT_MODE").unwrap().as_str() {
+            "cancel" => {}
+            "failed" => {
+                std::fs::write(path, "unfinished").unwrap();
+                std::process::exit(7);
+            }
+            _ => std::fs::write(path, "New note\n").unwrap(),
+        }
+    }
+    #[test]
+    fn new_notes_cancel_save_and_retain_drafts_on_failed_or_merged_writes() {
+        for (mode, status, returned) in [
+            ("cancel", 200, "New note\n"),
+            ("save", 200, "New note\n"),
+            ("failed", 200, "New note\n"),
+            ("save", 503, ""),
+            ("save", 200, "Merged note\n"),
+        ] {
+            let mut server = mockito::Server::new();
+            let write = server
+                .mock(
+                    "POST",
+                    mockito::Matcher::Regex("^/1/test/note/i/[a-f0-9-]+$".into()),
+                )
+                .match_query(mockito::Matcher::Any)
+                .match_body(mockito::Matcher::PartialJson(
+                    json!({"content":"New note\n"}),
+                ))
+                .with_status(status)
+                .with_header("x-simperium-version", "1")
+                .with_body(json!({"content":returned}).to_string())
+                .expect(usize::from(mode == "save"))
+                .create();
+            let http =
+                crate::api::Http::with_urls(&format!("{}/1/test/", server.url()), &server.url())
+                    .unwrap();
+            let capture = tempfile::tempdir().unwrap();
+            let record = capture.path().join("path");
+            let mut editor = Command::new(std::env::current_exe().unwrap());
+            editor
+                .args([
+                    "--exact",
+                    "edit::tests::new_note_editor_fixture",
+                    "--ignored",
+                    "--nocapture",
+                    "--skip",
+                ])
+                .env("DRAFT_MODE", mode)
+                .env("DRAFT_CAPTURE", &record)
+                .env("SIMPLENOTE_TOKEN", "fixture-secret");
+            let result = create(
+                &Api {
+                    http: &http,
+                    token: "fixture".into(),
+                },
+                editor,
+            );
+            let path = std::path::PathBuf::from(std::fs::read_to_string(record).unwrap());
+            write.assert();
+            if mode == "failed" || status == 503 || returned == "Merged note\n" {
+                let details = match result {
+                    Ok(response) => response,
+                    Err(error) => {
+                        if status == 503 {
+                            assert_eq!(error.details.as_ref().unwrap()["outcome_unknown"], true);
+                        }
+                        error.details.unwrap()
+                    }
+                };
+                assert_eq!(details["recovery_file"], path.to_str().unwrap());
+                assert_eq!(
+                    std::fs::read_to_string(&path).unwrap(),
+                    if mode == "failed" {
+                        "unfinished"
+                    } else {
+                        "New note\n"
+                    }
+                );
+                std::fs::remove_dir_all(path.parent().unwrap()).unwrap();
+            } else {
+                let response = result.unwrap();
+                if mode == "cancel" {
+                    assert_eq!(response["no_op"], true);
+                } else {
+                    assert_eq!(response["content"], "New note\n");
+                }
+                assert!(!path.parent().unwrap().exists());
+            }
+        }
+    }
     #[test]
     fn editor_arguments_are_quoted_without_running_a_shell() {
         let command = editor_command("'editor with spaces' --wait 'literal;$(echo nope)'").unwrap();

@@ -62,6 +62,55 @@ do not apply there. No credentials are borrowed from another application.
 service. `auth logout` removes this CLI's file; it does not revoke the server's
 token, sign out other devices, or clear `SIMPLENOTE_TOKEN`.
 
+## Interactive workspace
+
+```sh
+simplenote-cli tui
+simplenote-cli tui --demo
+simplenote-cli tui --demo --snapshot --width 132 --height 38
+```
+
+The full-screen workspace combines a tag rail, note index, and a Markdown
+reading pane. Small terminals switch to a single-pane layout; Enter opens a
+note and Esc returns to the index. Mouse clicks and the wheel work alongside
+the keyboard. Set `NO_COLOR=1` to use your terminal's own colors.
+
+| Key | Action |
+| --- | --- |
+| `↑` / `↓`, `j` / `k` | Select notes or scroll the focused pane |
+| `Tab`, `Enter`, `Esc` | Change focus, read, return |
+| `/`, then `Enter` | Search the account; typing previews loaded matches |
+| `t`, `1` / `2` / `3` | Tags, all notes, pinned, trash |
+| `m`, `r` | Load more, refresh |
+| `n`, `e` | Create or edit in `$VISUAL` / `$EDITOR` |
+| `p` | Pin or unpin |
+| `d`, `u` | Move to Trash with confirmation, restore |
+| `?`, `q` | Help, quit |
+
+Network reads and pin/trash/restore writes run in the background. The index
+shows pinned notes first, then recently modified notes, within the loaded
+results. Pages contain up to 50 notes; `m` continues traversal. Tags come from
+loaded notes. Pinned and trash views can have empty pages with more results
+available. Search scans account pages using the same bounded pagination as
+the CLI; keep loading while a next page is available.
+
+Creating and editing temporarily restore the ordinary terminal for your editor.
+An empty new draft cancels creation. Failed saves keep a private recovery draft,
+display its path, and print retained paths again when you quit. Writes use the
+same version checks and uncertain-write handling as CLI updates; nothing is
+retried automatically. New notes start without tags. The TUI keeps notes in
+memory only and does not create a persistent offline cache.
+
+Recovery drafts use the operating system's temporary directory. Copy them to
+a permanent location if you intend to keep them beyond the current session.
+Quitting waits for an in-flight pin, trash, or restore request to finish so its
+outcome can be reported. Trash confirmation requires `y`.
+
+`--demo` uses sample notes, disables writes, and never loads credentials or
+contacts Simplenote. `--demo --snapshot` prints a plain-text frame from the same
+renderer without requiring a terminal. Normal interactive mode requires
+terminal stdin, stdout, and stderr; use the CLI commands below in scripts.
+
 ## Read and search
 
 ```sh

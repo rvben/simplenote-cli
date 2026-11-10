@@ -74,6 +74,20 @@ fn main() -> ExitCode {
                 );
                 return Ok(());
             }
+            Command::Tui {
+                demo: true,
+                snapshot,
+                width,
+                height,
+            } => {
+                if snapshot {
+                    io::stdout()
+                        .write_all(simplenote_cli::tui::snapshot(width, height)?.as_bytes())?;
+                } else {
+                    simplenote_cli::tui::run(None)?;
+                }
+                return Ok(());
+            }
             _ => {}
         }
         let http = Http::new()?;

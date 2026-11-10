@@ -44,6 +44,21 @@ pub enum Command {
         #[arg(value_enum)]
         shell: clap_complete::Shell,
     },
+    /// Open the interactive note workspace (requires a terminal).
+    Tui {
+        /// Explore sample notes offline without credentials or network access.
+        #[arg(long)]
+        demo: bool,
+        /// Print a sample frame without entering the terminal. Requires --demo.
+        #[arg(long, requires = "demo")]
+        snapshot: bool,
+        /// Width of the sample frame (40–240 columns).
+        #[arg(long, requires = "snapshot", default_value_t = 132, value_parser = clap::value_parser!(u16).range(40..=240))]
+        width: u16,
+        /// Height of the sample frame (10–80 rows).
+        #[arg(long, requires = "snapshot", default_value_t = 38, value_parser = clap::value_parser!(u16).range(10..=80))]
+        height: u16,
+    },
     /// Manage local authentication.
     Auth {
         #[command(subcommand)]
@@ -186,6 +201,21 @@ pub fn execute(cli: &Cli, http: &Http, dir: &Path) -> Result<Option<Value>, Erro
                 "simplenote-cli",
                 &mut io::stdout(),
             );
+            return Ok(None);
+        }
+        Command::Tui {
+            demo,
+            snapshot,
+            width,
+            height,
+        } => {
+            if *snapshot {
+                io::stdout().write_all(crate::tui::snapshot(*width, *height)?.as_bytes())?;
+            } else {
+                crate::tui::require_terminal()?;
+                let token = if *demo { None } else { Some(auth::load(dir)?) };
+                crate::tui::run(token)?;
+            }
             return Ok(None);
         }
         Command::Auth { command } => {

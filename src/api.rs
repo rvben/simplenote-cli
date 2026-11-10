@@ -15,6 +15,13 @@ pub struct Api<'a> {
     pub http: &'a Http,
     pub token: String,
 }
+#[derive(Clone, Copy)]
+pub enum Collection {
+    Active,
+    All,
+    Pinned,
+    Trash,
+}
 
 impl Http {
     pub fn new() -> Result<Self, Error> {
@@ -149,6 +156,26 @@ impl Api<'_> {
         query: Option<&str>,
         deleted: bool,
     ) -> Result<Value, Error> {
+        self.list_collection(
+            limit,
+            cursor,
+            tag,
+            query,
+            if deleted {
+                Collection::All
+            } else {
+                Collection::Active
+            },
+        )
+    }
+    pub fn list_collection(
+        &self,
+        limit: usize,
+        cursor: Option<&str>,
+        tag: Option<&str>,
+        query: Option<&str>,
+        collection: Collection,
+    ) -> Result<Value, Error> {
         let mut items = Vec::new();
         let mut mark = cursor.map(str::to_owned);
         let mut seen = HashSet::new();
@@ -170,7 +197,13 @@ impl Api<'_> {
                     skipped_irregular += 1;
                     continue;
                 };
-                if !deleted && note["deleted"] == true {
+                let included = match collection {
+                    Collection::Active => note["deleted"] != true,
+                    Collection::All => true,
+                    Collection::Pinned => note["deleted"] != true && note["pinned"] == true,
+                    Collection::Trash => note["deleted"] == true,
+                };
+                if !included {
                     continue;
                 }
                 if tag.as_ref().is_some_and(|t| {
@@ -282,6 +315,22 @@ impl Api<'_> {
             return Ok(json!({"dry_run": true, "id": id, "base_version": base, "patch": patch}));
         }
         self.post(id, Some(current), &patch)
+    }
+    /// Preserve unknown system tags when toggling the pinned flag.
+    pub fn pin(&self, id: &str, base: u64, pinned: bool) -> Result<Value, Error> {
+        let (raw, current) = self.raw(id, None)?;
+        if current != base {
+            return Err(Error::new(
+                "conflict",
+                "This note changed. Refresh before pinning it.",
+            ));
+        }
+        let mut tags = raw["systemTags"].as_array().cloned().unwrap_or_default();
+        tags.retain(|tag| tag != "pinned");
+        if pinned {
+            tags.push(json!("pinned"));
+        }
+        self.change(id, base, json!({"systemTags":tags}), false)
     }
     fn post(&self, id: &str, base: Option<u64>, patch: &Value) -> Result<Value, Error> {
         validate_id(id)?;

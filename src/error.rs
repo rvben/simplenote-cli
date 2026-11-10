@@ -67,7 +67,7 @@ impl Error {
                 "conflict" => "Read the latest note and review your edit before trying again.",
                 "confirmation_required" => "Review the command and pass --yes to confirm.",
                 "tty_required" => {
-                    "Use a terminal for notes edit, or use notes update --file for scripts."
+                    "Run interactive commands in a terminal. Use notes list, notes get, or notes update --file for scripts."
                 }
                 _ => "Run simplenote-cli --help for usage.",
             }

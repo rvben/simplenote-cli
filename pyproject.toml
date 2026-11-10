@@ -26,4 +26,4 @@ Changelog = "https://github.com/rvben/simplenote-cli/blob/main/CHANGELOG.md"
 bindings = "bin"
 manifest-path = "Cargo.toml"
 strip = true
-exclude = ["DESIGN.md", ".impeccable/**"]
+exclude = ["PRODUCT.md", "DESIGN.md", ".impeccable/**"]

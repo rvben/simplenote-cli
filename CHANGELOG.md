@@ -8,6 +8,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Added
 
+- Add a full-screen terminal workspace with account search, tag navigation,
+  Markdown reading, external-editor creation and editing, pinning, trash and
+  restore, adaptive layouts, and an offline demo with inspectable snapshots.
 - Edit notes with `$VISUAL` or `$EDITOR`, with version checks, dry runs,
   and recoverable drafts when saving fails.
 
