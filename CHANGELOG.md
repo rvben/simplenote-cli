@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [0.2.1](https://github.com/rvben/simplenote-cli/compare/v0.2.0...v0.2.1) - 2026-11-10
+
 ### Added
 
 - Install `simplenote` as a shorter command alongside `simplenote-cli` with
