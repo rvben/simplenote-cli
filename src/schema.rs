@@ -69,9 +69,12 @@ fn walk(cmd: &clap::Command, prefix: &str, out: &mut Vec<Value>) {
                     "properties": {"items": {"type": "array", "items": {"type": "object"}}, "next_cursor": {"type": ["string", "null"]}, "has_more": {"type": "boolean"}, "skipped_irregular": {"type": "integer", "minimum": 0}, "scan_limited": {"type": "boolean"}}});
             }
             "notes get" => entry["stdout_schema"] = note_schema(),
-            "notes create" | "notes update" | "notes trash" | "notes restore" => {
+            "notes create" | "notes update" | "notes edit" | "notes trash" | "notes restore" => {
                 // Versioned edits can merge with concurrent clients; no unsafe retry promises.
                 entry["effects"] = json!("non_idempotent");
+                if path == "notes edit" {
+                    entry["requires_tty"] = json!(true);
+                }
                 entry["stdout_schema"] = json!({"anyOf": [note_schema(),
                     {"type": "object", "required": ["no_op", "note"], "properties": {"no_op": {"const": true}, "note": note_schema()}},
                     {"type": "object", "required": ["dry_run"], "properties": {"dry_run": {"const": true}, "id": {"type": "string"}, "base_version": {"type": "integer"}, "patch": {"type": "object"}, "note": note_schema()}}

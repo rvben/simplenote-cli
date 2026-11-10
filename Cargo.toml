@@ -33,6 +33,7 @@ rpassword = "7"
 uuid = { version = "1", features = ["v4"] }
 libc = "0.2"
 sha2 = "0.10"
+shell-words = "1.1"
 
 [dev-dependencies]
 mockito = "1"
@@ -42,3 +43,6 @@ jsonschema = { version = "0.46", default-features = false }
 strip = true
 lto = true
 codegen-units = 1
+
+[target."cfg(windows)".dependencies]
+windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_System_Console"] }

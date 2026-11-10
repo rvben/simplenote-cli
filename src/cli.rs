@@ -149,6 +149,13 @@ pub enum NotesCommand {
         #[command(flatten)]
         content: Content,
     },
+    /// Edit in $VISUAL or $EDITOR (requires a terminal). Keep drafts if saving fails.
+    Edit {
+        id: String,
+        /// Open the editor and preview the update without writing; keep the edited draft.
+        #[arg(long)]
+        dry_run: bool,
+    },
     /// Move a note to trash (recoverable).
     Trash {
         #[command(flatten)]
@@ -211,6 +218,22 @@ pub fn execute(cli: &Cli, http: &Http, dir: &Path) -> Result<Option<Value>, Erro
         }
         _ => {}
     }
+    let mut editor = if matches!(
+        cli.command,
+        Command::Notes {
+            command: NotesCommand::Edit { .. }
+        }
+    ) {
+        if !io::stdin().is_terminal() || !io::stderr().is_terminal() {
+            return Err(Error::new(
+                "tty_required",
+                "notes edit requires terminal input and stderr; use notes update --file for scripts.",
+            ));
+        }
+        Some(crate::edit::editor_from_environment()?)
+    } else {
+        None
+    };
     let api = Api {
         http,
         token: auth::load(dir)?,
@@ -249,6 +272,9 @@ pub fn execute(cli: &Cli, http: &Http, dir: &Path) -> Result<Option<Value>, Erro
                 json!({"content": read_content(content)?}),
                 change.dry_run,
             )?,
+            NotesCommand::Edit { id, dry_run } => {
+                crate::edit::edit(&api, id, *dry_run, editor.take().expect("validated editor"))?
+            }
             NotesCommand::Trash { change, yes } => {
                 if !yes && !change.dry_run {
                     return Err(Error::new(
@@ -336,7 +362,7 @@ fn project(value: &mut Value, fields: Option<&[String]>, history: bool) {
         }
     }
 }
-fn read_limited(reader: impl Read, limit: u64) -> Result<String, Error> {
+pub(crate) fn read_limited(reader: impl Read, limit: u64) -> Result<String, Error> {
     let mut bytes = Vec::new();
     reader.take(limit + 1).read_to_end(&mut bytes)?;
     if bytes.len() as u64 > limit {
@@ -345,16 +371,19 @@ fn read_limited(reader: impl Read, limit: u64) -> Result<String, Error> {
     String::from_utf8(bytes).map_err(|_| Error::usage("Input must be valid UTF-8."))
 }
 fn read_content(content: &Content) -> Result<String, Error> {
-    let text = if content.file == Path::new("-") {
+    if content.file == Path::new("-") {
         if io::stdin().is_terminal() {
             return Err(Error::usage(
                 "Pipe content into --file -, or specify a file.",
             ));
         }
-        read_limited(io::stdin().lock(), 1024 * 1024)?
+        read_note_content(io::stdin().lock())
     } else {
-        read_limited(std::fs::File::open(&content.file)?, 1024 * 1024)?
-    };
+        read_note_content(std::fs::File::open(&content.file)?)
+    }
+}
+pub(crate) fn read_note_content(reader: impl Read) -> Result<String, Error> {
+    let text = read_limited(reader, 1024 * 1024)?;
     if text.trim().is_empty() {
         return Err(Error::usage("Note content cannot be blank."));
     }
@@ -466,7 +495,7 @@ pub fn render(value: &Value, json: bool, writer: &mut impl Write) -> Result<(), 
 fn text_value(value: &Value) -> String {
     value.as_str().map_or_else(|| value.to_string(), safe_text)
 }
-fn safe_text(text: &str) -> String {
+pub(crate) fn safe_text(text: &str) -> String {
     text.chars()
         .map(|c| {
             if unsafe_terminal_character(c) {

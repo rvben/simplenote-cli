@@ -60,6 +60,22 @@ fn missing_auth_is_actionable() {
     assert_eq!(parse(&out.stderr)["error"]["kind"], "auth");
 }
 #[test]
+fn edit_refuses_without_a_terminal_and_declares_that_requirement() {
+    let output = run(&["notes", "edit", "abc"]);
+    assert_eq!(output.status.code(), Some(12));
+    assert!(output.stdout.is_empty());
+    assert_eq!(parse(&output.stderr)["error"]["kind"], "tty_required");
+    let schema = parse(&run(&["schema"]).stdout);
+    let edit = schema["commands"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|entry| entry["name"] == "notes edit")
+        .unwrap();
+    assert_eq!(edit["requires_tty"], true);
+    assert_eq!(edit["effects"], "non_idempotent");
+}
+#[test]
 fn help_and_completions_work_offline() {
     for args in [
         vec!["--help"],

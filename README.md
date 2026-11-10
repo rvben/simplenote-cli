@@ -104,6 +104,8 @@ printf 'A new note\n' | simplenote-cli notes create --file -
 simplenote-cli notes get NOTE_ID
 simplenote-cli notes update NOTE_ID --base-version 42 --file edited.md --dry-run
 simplenote-cli notes update NOTE_ID --base-version 42 --file edited.md
+simplenote-cli notes edit NOTE_ID
+simplenote-cli notes edit NOTE_ID --dry-run
 simplenote-cli notes trash NOTE_ID --base-version 43 --yes
 simplenote-cli notes restore NOTE_ID --base-version 44
 ```
@@ -129,6 +131,32 @@ you can inspect that ID after an ambiguous failure. Failed writes also include
 Check the note after a network error, server error, or invalid write response
 before deciding to retry.
 A repeated edit with its original base version normally refuses as stale.
+
+`notes edit` fetches the note and its version, opens a private Markdown draft in
+the first nonempty `$VISUAL` or `$EDITOR`, and waits for that program to exit.
+The default is `vi` on Unix. Windows requires a configured editor that waits
+for editing to finish. Editor settings support quoted arguments, for example
+`VISUAL='code --wait'` (`code.cmd --wait` on Windows); the CLI does not expand
+shell expressions. Use a wait option for GUI editors.
+Quote executable paths containing spaces; on Windows, use forward slashes or
+single quotes around backslash paths.
+
+Unchanged content is a no-op. Changed content uses the fetched version with the
+same preflight check and concurrent-merge limitations as `notes update`.
+Failures retain the draft and return `error.details.recovery_file` and
+`base_version`; JSON errors preserve any uncertain-write information. Inspect
+`recovery_directory` if the editor removed or renamed the draft; that directory
+also retains any backup files left by the editor. Inspect
+the latest note before retrying with `notes update --file`. A changed dry-run
+also retains its draft, as does a successful save whose server result differs
+from the submitted text; those results include `recovery_file` and `base_version`.
+Successful exact saves and unchanged edits clean up their drafts.
+
+On Unix the draft directory is mode 0700 and the initial file mode 0600. Editor
+output goes to stderr, keeping stdout available for a structured result. This
+command requires terminal stdin and stderr, declares `requires_tty` in its
+clispec contract, and refuses noninteractive use with `tty_required` (exit 12).
+Use `notes update --file` in scripts and agents.
 
 ## Export
 
@@ -177,6 +205,7 @@ the last stderr line on failure is an `error` object with `kind`, `message`,
 | 9 | invalid_response |
 | 10 | remote |
 | 11 | confirmation_required |
+| 12 | tty_required |
 
 ## Development
 

@@ -20,6 +20,7 @@ pub const KINDS: &[(&str, u8, bool)] = &[
     ("invalid_response", 9, false),
     ("remote", 10, false),
     ("confirmation_required", 11, false),
+    ("tty_required", 12, false),
 ];
 
 impl Error {
@@ -50,6 +51,12 @@ impl Error {
             .is_some_and(|v| v["outcome_unknown"] == true)
         {
             "The write may have succeeded. Get the note using error.details.note_id and review it before retrying."
+        } else if self
+            .details
+            .as_ref()
+            .is_some_and(|v| v.get("recovery_file").is_some())
+        {
+            "The draft is in error.details.recovery_file. Read the latest note and review your draft before saving with notes update --file."
         } else {
             match self.kind {
                 "auth" => "Run simplenote-cli auth login, or set SIMPLENOTE_TOKEN.",
@@ -59,6 +66,9 @@ impl Error {
                 "rate_limited" => "Wait before retrying. Do not repeatedly redeem a login code.",
                 "conflict" => "Read the latest note and review your edit before trying again.",
                 "confirmation_required" => "Review the command and pass --yes to confirm.",
+                "tty_required" => {
+                    "Use a terminal for notes edit, or use notes update --file for scripts."
+                }
                 _ => "Run simplenote-cli --help for usage.",
             }
         };
