@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [0.2.0](https://github.com/rvben/simplenote-cli/compare/v0.1.1...v0.2.0) - 2026-11-10
+
 ### Added
 
 - Add a full-screen terminal workspace with account search, tag navigation,
@@ -18,6 +20,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
 - Align the terminal workspace with Simplenote's dark charcoal and blue palette,
   including the 256-color terminal fallback.
+
+### Fixed
+
+- **tui**: redraw reliably after external editing ([5f96d09](https://github.com/rvben/simplenote-cli/commit/5f96d0966154871327686e55aa42de73b7b3249b))
 
 ## [0.1.1](https://github.com/rvben/simplenote-cli/compare/v0.1.0...v0.1.1) - 2026-11-10
 
