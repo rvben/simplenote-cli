@@ -45,12 +45,14 @@ def main():
                 raise RuntimeError("wheel metadata differs from Cargo")
             if info.get_all("Requires-Dist"):
                 raise RuntimeError("native CLI unexpectedly requires Python packages")
-            executable = "simplenote-cli.exe" if os.name == "nt" else "simplenote-cli"
-            if not any(n.endswith(".data/scripts/" + executable) for n in wheel.namelist()):
-                raise RuntimeError("wheel does not contain the native CLI")
+            executables = [name + (".exe" if os.name == "nt" else "")
+                           for name in ("simplenote", "simplenote-cli")]
+            for executable in executables:
+                if not any(n.endswith(".data/scripts/" + executable) for n in wheel.namelist()):
+                    raise RuntimeError("wheel is missing " + executable)
         with tarfile.open(sources[0]) as archive:
             names = {n.split("/", 1)[-1] for n in archive.getnames()}
-            required = {"pyproject.toml", "Cargo.toml", "Cargo.lock", "src/main.rs",
+            required = {"pyproject.toml", "Cargo.toml", "Cargo.lock", "src/main.rs", "src/bin/simplenote.rs",
                         "schemas/clispec-v0.3.json", "LICENSE", "README.md"}
             if not required <= names:
                 raise RuntimeError("source distribution is incomplete")
@@ -59,8 +61,9 @@ def main():
         venv = work / "venv"
         run("uv", "venv", "--python", sys.executable, str(venv))
         run("uv", "pip", "install", "--python", str(venv), "--no-index", str(wheels[0]))
-        binary = venv / ("Scripts" if os.name == "nt" else "bin") / executable
-        run(sys.executable, str(root / "scripts/smoke-release.py"), str(binary), version)
+        for executable in executables:
+            binary = venv / ("Scripts" if os.name == "nt" else "bin") / executable
+            run(sys.executable, str(root / "scripts/smoke-release.py"), str(binary), version)
     print(json.dumps({"version": version, "sdist_build_and_wheel_install": "passed"}))
 
 

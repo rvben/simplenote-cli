@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Added
+
+- Install `simplenote` as a shorter command alongside `simplenote-cli` with
+  Cargo, PyPI, and GitHub binaries; both commands share configuration and credentials.
+
 ## [0.2.0](https://github.com/rvben/simplenote-cli/compare/v0.1.1...v0.2.0) - 2026-11-10
 
 ### Added

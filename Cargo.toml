@@ -3,6 +3,7 @@ name = "simplenote-cli"
 version = "0.2.0"
 edition = "2024"
 rust-version = "1.90"
+default-run = "simplenote"
 description = "A scriptable Simplenote CLI for humans and agents"
 authors = ["Ruben J. Jongejan <ruben.jongejan@gmail.com>"]
 license = "MIT"
@@ -20,6 +21,10 @@ path = "src/lib.rs"
 [[bin]]
 name = "simplenote-cli"
 path = "src/main.rs"
+
+[[bin]]
+name = "simplenote"
+path = "src/bin/simplenote.rs"
 
 [dependencies]
 clap = { version = "4", features = ["derive"] }

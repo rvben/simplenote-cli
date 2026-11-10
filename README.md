@@ -10,7 +10,9 @@ edit refusal, trash/restore, and export. Automated tests use isolated fixtures.
 
 ## Install
 
-Cargo and PyPI packages install the same native Rust executable. Maturin builds
+Cargo and PyPI packages install both `simplenote` and `simplenote-cli`. Both
+commands run the same native Rust CLI and share credentials and configuration.
+Maturin builds
 the PyPI package, which has no Python runtime dependencies.
 
 ```sh
@@ -36,8 +38,8 @@ cargo install --path . --locked
 ## Login
 
 ```sh
-simplenote-cli auth login
-simplenote-cli auth status
+simplenote auth login
+simplenote auth status
 ```
 
 On a terminal, login prints the browser URL and prompts for the `email:CODE`
@@ -65,9 +67,9 @@ token, sign out other devices, or clear `SIMPLENOTE_TOKEN`.
 ## Interactive workspace
 
 ```sh
-simplenote-cli tui
-simplenote-cli tui --demo
-simplenote-cli tui --demo --snapshot --width 132 --height 38
+simplenote tui
+simplenote tui --demo
+simplenote tui --demo --snapshot --width 132 --height 38
 ```
 
 The full-screen workspace combines a tag rail, note index, and a Markdown

@@ -2,8 +2,11 @@ use serde_json::Value;
 use std::process::{Command, Stdio};
 const BIN: &str = env!("CARGO_BIN_EXE_simplenote-cli");
 fn run(args: &[&str]) -> std::process::Output {
+    run_binary(BIN, args)
+}
+fn run_binary(binary: &str, args: &[&str]) -> std::process::Output {
     let dir = tempfile::tempdir().unwrap();
-    Command::new(BIN)
+    Command::new(binary)
         .args(args)
         .env_remove("SIMPLENOTE_TOKEN")
         .env("SIMPLENOTE_CONFIG_DIR", dir.path())
@@ -138,5 +141,45 @@ fn tui_snapshot_requires_demo_and_valid_geometry() {
         let output = run(&args);
         assert_eq!(output.status.code(), Some(2));
         assert!(output.stdout.is_empty());
+    }
+}
+
+#[test]
+fn both_commands_share_behavior_and_use_their_own_names() {
+    let short = env!("CARGO_BIN_EXE_simplenote");
+    for (binary, name) in [(short, "simplenote"), (BIN, "simplenote-cli")] {
+        let out = run_binary(binary, &["--version"]);
+        assert!(out.status.success());
+        assert_eq!(
+            String::from_utf8(out.stdout).unwrap().trim(),
+            format!("{name} {}", env!("CARGO_PKG_VERSION"))
+        );
+        let out = run_binary(binary, &["--help"]);
+        assert!(out.status.success());
+        assert!(
+            String::from_utf8(out.stdout)
+                .unwrap()
+                .contains(&format!("Usage: {name} "))
+        );
+        let out = run_binary(binary, &["completions", "bash"]);
+        assert!(out.status.success());
+        assert!(
+            String::from_utf8(out.stdout)
+                .unwrap()
+                .lines()
+                .any(|line| line.trim_start().starts_with("complete ")
+                    && line.ends_with(&format!(" {name}")))
+        );
+    }
+    for args in [
+        vec!["schema"],
+        vec!["auth", "status"],
+        vec!["notes", "list"],
+    ] {
+        let short_output = run_binary(short, &args);
+        let long_output = run_binary(BIN, &args);
+        assert_eq!(short_output.status.code(), long_output.status.code());
+        assert_eq!(short_output.stdout, long_output.stdout);
+        assert_eq!(short_output.stderr, long_output.stderr);
     }
 }

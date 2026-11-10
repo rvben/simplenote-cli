@@ -1,4 +1,4 @@
-use clap::Parser;
+use clap::{CommandFactory, FromArgMatches};
 use simplenote_cli::{
     Error,
     api::Http,
@@ -11,7 +11,13 @@ use std::{
 };
 
 fn main() -> ExitCode {
-    let cli = match Cli::try_parse() {
+    let name = env!("CARGO_BIN_NAME");
+    let cli = match Cli::command()
+        .name(name)
+        .bin_name(name)
+        .try_get_matches()
+        .and_then(|matches| Cli::from_arg_matches(&matches))
+    {
         Ok(cli) => cli,
         Err(error)
             if matches!(
@@ -65,13 +71,7 @@ fn main() -> ExitCode {
                 );
             }
             Command::Completions { shell } => {
-                use clap::CommandFactory;
-                clap_complete::generate(
-                    shell,
-                    &mut Cli::command(),
-                    "simplenote-cli",
-                    &mut io::stdout(),
-                );
+                clap_complete::generate(shell, &mut Cli::command(), name, &mut io::stdout());
                 return Ok(());
             }
             Command::Tui {

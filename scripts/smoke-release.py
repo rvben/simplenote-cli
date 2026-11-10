@@ -11,6 +11,7 @@ import tempfile
 def main():
     binary = str(Path(sys.argv[1]).resolve())
     version = sys.argv[2]
+    name = Path(binary).stem
     with tempfile.TemporaryDirectory(prefix="simplenote-package-smoke-") as directory:
         environment = os.environ.copy()
         environment.pop("SIMPLENOTE_TOKEN", None)
@@ -31,8 +32,13 @@ def main():
                 raise RuntimeError("successful command polluted stderr")
             return result.stdout
 
-        if run("--version").strip() != "simplenote-cli " + version:
+        if run("--version").strip() != name + " " + version:
             raise RuntimeError("installed CLI version differs from package metadata")
+        if "Usage: " + name + " " not in run("--help"):
+            raise RuntimeError("installed CLI help uses the wrong command name")
+        if not any(line.lstrip().startswith("complete ") and line.endswith(" " + name)
+                   for line in run("completions", "bash").splitlines()):
+            raise RuntimeError("installed CLI completions use the wrong command name")
         schema = json.loads(run("schema"))
         if schema["clispec"] != "0.3":
             raise RuntimeError("installed CLI discovery contract changed")
@@ -51,7 +57,7 @@ def main():
         error = json.loads(run("-o", "json", "notes", "list", exit_code=3))
         if error["error"]["kind"] != "auth":
             raise RuntimeError("missing credentials did not produce an auth error")
-    print(json.dumps({"version": version, "installed_package_smoke": "passed"}))
+    print(json.dumps({"version": version, "command": name, "installed_package_smoke": "passed"}))
 
 
 if __name__ == "__main__":

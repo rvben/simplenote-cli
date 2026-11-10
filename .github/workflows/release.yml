@@ -111,7 +111,9 @@ jobs:
           uv pip install --python "$RUNNER_TEMP/wheel-smoke" --no-index dist/wheels/*.whl
           venv_bin="$RUNNER_TEMP/wheel-smoke/bin"
           test -d "$venv_bin" || venv_bin="$RUNNER_TEMP/wheel-smoke/Scripts"
-          python scripts/smoke-release.py "$venv_bin/simplenote-cli${{ matrix.extension }}" "$VERSION"
+          for command in simplenote simplenote-cli; do
+            python scripts/smoke-release.py "$venv_bin/$command${{ matrix.extension }}" "$VERSION"
+          done
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: wheel-${{ matrix.target }}
@@ -119,14 +121,19 @@ jobs:
           if-no-files-found: error
       - name: Smoke test binary
         if: ${{ !matrix.cross }}
-        run: ./target/${{ matrix.target }}/release/simplenote-cli${{ matrix.extension }} --version
+        run: |
+          for command in simplenote simplenote-cli; do
+            ./target/${{ matrix.target }}/release/$command${{ matrix.extension }} --version
+          done
       - name: Package binary and checksum
         env:
           VERSION: ${{ needs.check.outputs.version }}
           TARGET: ${{ matrix.target }}
         run: |
           mkdir package
-          cp "target/$TARGET/release/simplenote-cli${{ matrix.extension }}" package/
+          for command in simplenote simplenote-cli; do
+            cp "target/$TARGET/release/$command${{ matrix.extension }}" package/
+          done
           cp LICENSE README.md package/
           archive="simplenote-cli-v$VERSION-$TARGET.tar.gz"
           tar -czf "$archive" -C package .
@@ -215,7 +222,9 @@ jobs:
             test "$attempt" -lt 6 || exit 1
             sleep 10
           done
-          python scripts/smoke-release.py "$RUNNER_TEMP/pypi-smoke/bin/simplenote-cli" "$VERSION"
+          for command in simplenote simplenote-cli; do
+            python scripts/smoke-release.py "$RUNNER_TEMP/pypi-smoke/bin/$command" "$VERSION"
+          done
 
   crates:
     needs: [check, build, sdist]

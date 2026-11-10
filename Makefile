@@ -28,7 +28,7 @@ clean:
 
 install: release
 	mkdir -p ~/.local/bin
-	cp target/release/simplenote-cli ~/.local/bin/simplenote-cli
+	cp target/release/simplenote target/release/simplenote-cli ~/.local/bin/
 
 update-deps:
 	upd --apply --max-bump minor --lang rust,actions
