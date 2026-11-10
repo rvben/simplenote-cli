@@ -40,37 +40,37 @@ impl Theme {
         if self.truecolor {
             return Color::Rgb(rgb.0, rgb.1, rgb.2);
         }
-        // A restrained 256-color counterpart for terminals without truecolor.
+        // Preserve Simplenote's neutral surfaces and blue interaction cues at 256 colors.
         Color::Indexed(match rgb {
-            (19, 27, 25) => 234,
-            (204, 213, 204) => 188,
-            (237, 232, 214) => 230,
-            (143, 162, 150) => 246,
-            (166, 205, 170) => 151,
-            (68, 87, 77) => 239,
-            (221, 197, 153) => 180,
-            (231, 239, 226) => 254,
-            (43, 64, 52) => 237,
-            _ => 235,
+            (29, 35, 39) => 235,
+            (220, 220, 222) => 253,
+            (246, 247, 247) => 255,
+            (167, 170, 173) => 248,
+            (132, 164, 240) => 111,
+            (80, 87, 94) => 240,
+            (196, 211, 246) => 189,
+            (38, 60, 105) => 24,
+            _ => 236,
         })
     }
+
     pub fn text(self) -> Style {
-        self.style((204, 213, 204), (19, 27, 25))
+        self.style((220, 220, 222), (29, 35, 39))
     }
     pub fn strong(self) -> Style {
-        self.style((237, 232, 214), (19, 27, 25))
+        self.style((246, 247, 247), (29, 35, 39))
     }
     pub fn muted(self) -> Style {
-        self.style((143, 162, 150), (19, 27, 25))
+        self.style((167, 170, 173), (29, 35, 39))
     }
     pub fn accent(self) -> Style {
-        self.style((166, 205, 170), (19, 27, 25))
+        self.style((132, 164, 240), (29, 35, 39))
     }
     pub fn rule(self) -> Style {
-        self.style((68, 87, 77), (19, 27, 25))
+        self.style((80, 87, 94), (29, 35, 39))
     }
     pub fn code(self) -> Style {
-        self.style((221, 197, 153), (19, 27, 25))
+        self.style((196, 211, 246), (29, 35, 39))
     }
     pub fn selected(self, focused: bool) -> Style {
         if !self.color {
@@ -81,8 +81,8 @@ impl Theme {
             });
         }
         self.style(
-            (231, 239, 226),
-            if focused { (43, 64, 52) } else { (31, 43, 36) },
+            (246, 247, 247),
+            if focused { (38, 60, 105) } else { (44, 51, 56) },
         )
     }
 }

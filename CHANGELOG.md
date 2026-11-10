@@ -14,6 +14,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 - Edit notes with `$VISUAL` or `$EDITOR`, with version checks, dry runs,
   and recoverable drafts when saving fails.
 
+### Changed
+
+- Align the terminal workspace with Simplenote's dark charcoal and blue palette,
+  including the 256-color terminal fallback.
+
 ## [0.1.1](https://github.com/rvben/simplenote-cli/compare/v0.1.0...v0.1.1) - 2026-11-10
 
 ### Added
