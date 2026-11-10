@@ -1,0 +1,8 @@
+[project]
+branch = "main"
+
+[checks]
+lint = true
+tests = true
+lint_command = "make lint"
+test_command = "make test"

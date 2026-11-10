@@ -1,0 +1,188 @@
+# simplenote-cli
+
+A Rust command-line client for existing Simplenote accounts. Text on a terminal,
+JSON when piped, a discoverable [clispec](https://clispec.dev) v0.3 candidate
+contract, and no background daemon. This is an independent, unofficial client.
+
+Live smoke tests cover browser login, listing, pagination, field selection,
+fetching, exact text output, history, search, creation, dry-run, updates, stale
+edit refusal, trash/restore, and export. Automated tests use isolated fixtures.
+
+## Build
+
+Requires Rust 1.90 or newer:
+
+```sh
+cargo build --release --locked
+cargo install --path . --locked
+```
+
+No packages or releases have been published yet.
+
+## Login
+
+```sh
+simplenote-cli auth login
+simplenote-cli auth status
+```
+
+On a terminal, login prints the browser URL and prompts for the `email:CODE`
+credential with input hidden. The browser supports the sign-in methods offered
+by Simplenote. Codes expire after five minutes and are single-use. The CLI does
+not request or store your password and does not automatically retry redemption.
+
+Without a terminal, `auth login` returns a login URL and instructions. Redeem a
+code through stdin using `auth login --code-stdin`; avoid putting credentials in
+arguments or shell history. Headless use can instead supply `SIMPLENOTE_TOKEN`.
+Tokens and codes are never included in output.
+
+Credentials are stored in `auth.json` under the platform configuration directory
+(`~/Library/Application Support/simplenote-cli` on macOS,
+`$XDG_CONFIG_HOME/simplenote-cli` or `~/.config/simplenote-cli` on Linux).
+`SIMPLENOTE_CONFIG_DIR` overrides that directory. On Unix, files are written with
+mode 0600, and symlinks, special files, and group/world-readable credential files
+are rejected. Windows uses platform filesystem permissions; Unix mode guarantees
+do not apply there. No credentials are borrowed from another application.
+
+`auth status` checks local availability only; it does not verify a token with the
+service. `auth logout` removes this CLI's file; it does not revoke the server's
+token, sign out other devices, or clear `SIMPLENOTE_TOKEN`.
+
+## Read and search
+
+```sh
+simplenote-cli notes list --limit 20
+simplenote-cli notes list --tag work --fields id,title,version
+simplenote-cli notes search 'release checklist'
+simplenote-cli notes get NOTE_ID
+simplenote-cli notes get NOTE_ID --version 42
+simplenote-cli notes cat NOTE_ID > note.md
+simplenote-cli notes history NOTE_ID --limit 10
+```
+
+List and search use server index order, exclude trash by default, and omit note
+content from their results. `--include-deleted` includes trash. Search is a
+case-insensitive substring match over note content; filtering may scan multiple
+server pages. Each invocation scans at most 20 server pages; a selective query
+may return fewer than `--limit` matches, including an empty page, with a
+`next_cursor`. Continue until that cursor is null. Results are fresh network reads; this version has no offline cache.
+
+Tag matching is case-insensitive. Collections return `items`, `has_more`,
+`next_cursor`, and `skipped_irregular` (the count of malformed records omitted
+during this request; export preserves those records). Continue with
+`--cursor TOKEN` and the same filters. `--limit` is 1–100, default 20. The server's
+index is not a transactional snapshot: concurrent edits can affect traversal.
+History cursors are version numbers; unavailable versions are marked explicitly.
+Timestamps are the service's Unix seconds (numbers or numeric strings).
+
+`notes get` includes the full content and version. When piped, `notes cat`
+emits exact UTF-8 content with no added newline, even with `-o json`. On a
+terminal, control and direction characters are escaped unless `--raw` is passed.
+It is declared as an opaque text command in the schema.
+
+## Write
+
+```sh
+simplenote-cli notes create --file note.md --tag work --dry-run
+simplenote-cli notes create --file note.md --tag work
+printf 'A new note\n' | simplenote-cli notes create --file -
+
+simplenote-cli notes get NOTE_ID
+simplenote-cli notes update NOTE_ID --base-version 42 --file edited.md --dry-run
+simplenote-cli notes update NOTE_ID --base-version 42 --file edited.md
+simplenote-cli notes trash NOTE_ID --base-version 43 --yes
+simplenote-cli notes restore NOTE_ID --base-version 44
+```
+
+Content must be nonblank UTF-8 and at most 1 MiB. New notes enable Markdown.
+Tags must contain no whitespace, commas, or `@`; case-insensitive duplicates
+are removed. Email tags can share notes in Simplenote, so this CLI rejects them.
+Updates change content only; other fields are preserved by sending a partial
+patch. Trash is recoverable; permanent deletion is not exposed.
+
+`--base-version` is required for edits, trash, and restore. The CLI first reads
+the current version and rejects an edit that is already stale. It then sends a
+versioned patch to Simperium. **This is not an atomic compare-and-swap:** Simperium
+can merge edits made concurrently after that read. The CLI returns the server's
+actual resulting content and version. Review the result when concurrent editing
+is possible. It never claims the server enforces a strict version precondition.
+
+`--dry-run` performs validation (including a fresh read for edits) without sending
+a write. Creates and writes are never automatically retried. Repeating a create
+can create a duplicate; its chosen ID is printed to stderr before the request so
+you can inspect that ID after an ambiguous failure. Failed writes also include
+`error.details.note_id`, `operation`, and `outcome_unknown` in the JSON error.
+Check the note after a network error, server error, or invalid write response
+before deciding to retry.
+A repeated edit with its original base version normally refuses as stale.
+
+## Export
+
+```sh
+simplenote-cli export --directory ./simplenote-export
+```
+
+Creates a **new** directory and one private JSON file per note, named
+`note-<SHA256 of exact note ID>.json`. Hashing avoids case-insensitive filename
+collisions and platform-reserved names; the exact ID stays in the JSON.
+Includes trash, full content, tags, flags, versions, and timestamps. Every file
+also contains `raw`, preserving all service fields, including publication and
+sharing metadata and unknown system tags. Irregular legacy records that cannot
+be normalized are still exported with `id`, `version`, `normalized: false`, and
+`raw`. Historical revisions are not included. There is no bulk import command
+in this version.
+
+Existing directories and files are never overwritten. Failed exports retain
+partial files for inspection; retry into a different new directory. Export is
+paginated internally and is not an atomic account snapshot.
+
+## Output and errors
+
+```sh
+simplenote-cli -o json notes list | jq '.items[].id'
+simplenote-cli -o text notes list
+simplenote-cli schema
+simplenote-cli completions zsh
+```
+
+`--output auto|json|text` / `-o` is global. Auto uses readable text on a terminal
+and JSON otherwise. Data goes to stdout; diagnostics go to stderr. In JSON mode,
+the last stderr line on failure is an `error` object with `kind`, `message`,
+`exit_code`, and `hint`. No telemetry is sent by this client.
+
+| Exit | Kind |
+|---|---|
+| 1 | internal |
+| 2 | usage |
+| 3 | auth |
+| 4 | not_found |
+| 5 | network |
+| 6 | rate_limited |
+| 7 | conflict |
+| 8 | io |
+| 9 | invalid_response |
+| 10 | remote |
+| 11 | confirmation_required |
+
+## Development
+
+```sh
+make check
+cargo test --locked
+cargo build --locked
+clispec score ./target/debug/simplenote-cli auth status
+```
+
+Tests use isolated HTTP fixtures and temporary credential directories; they do
+not contact your account or create remote notes. The contract derives arguments
+from clap and validates against the vendored v0.3 candidate schema. The candidate
+spec can still change.
+
+API behavior follows [Simperium's HTTP reference](https://simperium.com/docs/reference/http/).
+The browser code flow and service app ID were verified against
+[Automattic's Simplenote MCP implementation](https://github.com/Automattic/simplenote-mcp).
+Simplenote's [developer page](https://simplenote.com/developers/) does not offer a
+supported third-party integration contract; service compatibility may change.
+Publishing and releases require a separate explicit approval and use `vership`.
+
+Release preparation and publishing prerequisites are documented in [docs/releases.md](docs/releases.md).
