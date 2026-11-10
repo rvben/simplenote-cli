@@ -8,6 +8,7 @@ release:
 
 test:
 	cargo test --locked
+	python3 scripts/smoke-tui-pty.py
 
 lint:
 	cargo fmt -- --check

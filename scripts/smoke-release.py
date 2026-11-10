@@ -36,6 +36,15 @@ def main():
         schema = json.loads(run("schema"))
         if schema["clispec"] != "0.3":
             raise RuntimeError("installed CLI discovery contract changed")
+        commands = {command["name"] for command in schema["commands"]}
+        if not {"tui", "notes edit"} <= commands:
+            raise RuntimeError("installed CLI is missing interactive commands")
+        frame = run("tui", "--demo", "--snapshot", "--width", "60", "--height", "24")
+        if len(frame.splitlines()) != 24 or "simplenote" not in frame or "q quit" not in frame or "\x1b" in frame:
+            raise RuntimeError("installed TUI demo did not produce a clean sample frame")
+        error = json.loads(run("-o", "json", "tui", exit_code=12))
+        if error["error"]["kind"] != "tty_required":
+            raise RuntimeError("installed TUI did not refuse noninteractive use")
         status = json.loads(run("-o", "json", "auth", "status"))
         if status["authenticated"] is not False:
             raise RuntimeError("smoke test borrowed credentials")

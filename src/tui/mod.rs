@@ -85,7 +85,7 @@ impl TerminalGuard {
         {
             restore_terminal();
             self.active = false;
-            return Err(error.into());
+            return Err(terminal_error("resume", error));
         }
         let _ = execute!(io::stdout(), EnableBracketedPaste);
         Ok(())
@@ -138,12 +138,14 @@ pub fn run(token: Option<String>) -> Result<(), Error> {
                     dispatch(request, Some(worker), &mut pending);
                 }
             }
-            terminal.draw(|frame| view::draw(frame, &mut app, theme))?;
-            if !event::poll(Duration::from_millis(100))? {
+            terminal
+                .draw(|frame| view::draw(frame, &mut app, theme))
+                .map_err(|e| terminal_error("draw", e))?;
+            if !event::poll(Duration::from_millis(100)).map_err(|e| terminal_error("poll", e))? {
                 app.tick = app.tick.wrapping_add(1);
                 continue;
             }
-            let action = match event::read()? {
+            let action = match event::read().map_err(|e| terminal_error("read", e))? {
                 Event::Key(key) if key.kind != KeyEventKind::Release => app.key(key),
                 Event::Paste(text) => {
                     if let Some(search) = app.search.as_mut() {
@@ -258,7 +260,8 @@ pub fn run(token: Option<String>) -> Result<(), Error> {
                         }
                     }
                     guard.resume()?;
-                    terminal.clear()?;
+                    redraw_after_editor(&mut terminal)
+                        .map_err(|e| terminal_error("redraw after editor", e))?;
                     match result {
                         Ok(value) => {
                             remember_recovery(&mut app, &value);
@@ -458,4 +461,20 @@ fn apply_saved(app: &mut App, value: serde_json::Value, creating: bool) {
     } else {
         "Saved to Simplenote · r to refresh other notes".into()
     };
+}
+
+fn terminal_error(operation: &str, error: io::Error) -> Error {
+    Error::new(
+        "io",
+        format!("Terminal {operation} failed ({:?}).", error.kind()),
+    )
+}
+
+fn redraw_after_editor<B: ratatui::backend::Backend>(
+    terminal: &mut Terminal<B>,
+) -> Result<(), B::Error> {
+    // Fullscreen redraws do not need to preserve the editor's cursor. Terminal::clear
+    // queries its position, which can time out on terminals that do not answer DSR.
+    let area = terminal.size()?.into();
+    terminal.resize(area)
 }

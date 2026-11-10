@@ -486,11 +486,32 @@ fn limited_color_terminals_use_indexed_colors() {
 #[ignore = "Requires a real terminal; exercised by the PTY smoke test"]
 fn terminal_suspend_resume_fixture() {
     let mut guard = TerminalGuard::enter().unwrap();
+    let mut terminal = Terminal::new(CrosstermBackend::new(io::stdout())).unwrap();
+    terminal
+        .draw(|frame| {
+            frame.render_widget("Before editor", frame.area());
+        })
+        .unwrap();
     assert!(crossterm::terminal::is_raw_mode_enabled().unwrap());
     guard.suspend();
     assert!(!crossterm::terminal::is_raw_mode_enabled().unwrap());
+    #[cfg(unix)]
+    assert!(
+        std::process::Command::new("sh")
+            .args(["-c", "printf 'Editor handoff\n'"])
+            .status()
+            .unwrap()
+            .success()
+    );
     guard.resume().unwrap();
+    redraw_after_editor(&mut terminal).unwrap();
+    terminal
+        .draw(|frame| {
+            frame.render_widget("After editor", frame.area());
+        })
+        .unwrap();
     assert!(crossterm::terminal::is_raw_mode_enabled().unwrap());
+    drop(terminal);
     drop(guard);
     assert!(!crossterm::terminal::is_raw_mode_enabled().unwrap());
 }
