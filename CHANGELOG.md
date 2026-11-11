@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [0.2.2](https://github.com/rvben/simplenote-cli/compare/v0.2.1...v0.2.2) - 2026-11-11
+
 ### Fixed
 
 - Enable SOCKS proxies and macOS/Windows system HTTP/HTTPS proxy discovery for
