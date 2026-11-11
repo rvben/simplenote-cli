@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [0.2.3](https://github.com/rvben/simplenote-cli/compare/v0.2.2...v0.2.3) - 2026-11-11
+
 ### Changed
 
 - Polish terminal output with compact note cards, readable note bodies, UTC dates,
