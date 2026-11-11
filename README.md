@@ -43,14 +43,19 @@ simplenote auth status
 ```
 
 On a terminal, login prints the browser URL and prompts for the `email:CODE`
-credential with input hidden. The browser supports the sign-in methods offered
-by Simplenote. Codes expire after five minutes and are single-use. The CLI does
-not request or store your password and does not automatically retry redemption.
+credential, showing asterisks as you type or paste. Press `Ctrl+R` to show or hide
+the input, Backspace to edit, or `Ctrl+U` to clear it. Press Enter to sign in, or
+Esc / `Ctrl+C` / `Ctrl+D` to cancel without redeeming the code. The input line is
+cleared before submission or cancellation. The browser supports the sign-in
+methods offered by Simplenote. Codes expire after five minutes and are single-use.
+The CLI does not request or store your password and does not automatically retry
+redemption.
 
 Without a terminal, `auth login` returns a login URL and instructions. Redeem a
 code through stdin using `auth login --code-stdin`; avoid putting credentials in
 arguments or shell history. Headless use can instead supply `SIMPLENOTE_TOKEN`.
-Tokens and codes are never included in output.
+Tokens are never printed. Codes are shown only when you explicitly reveal them
+in the interactive terminal; they are never included in structured output or errors.
 
 Credentials are stored in `auth.json` under the platform configuration directory
 (`~/Library/Application Support/simplenote-cli` on macOS,

@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Changed
+
+- Show masked feedback while entering a browser login credential, with Ctrl+R
+  to show/hide, Backspace to edit, Ctrl+U to clear, and Esc/Ctrl+C/Ctrl+D to cancel.
+  Clear the input line before submission and cancellation.
+
 ## [0.2.2](https://github.com/rvben/simplenote-cli/compare/v0.2.1...v0.2.2) - 2026-11-11
 
 ### Fixed

@@ -238,7 +238,10 @@ pub fn execute(cli: &Cli, http: &Http, dir: &Path) -> Result<Option<Value>, Erro
                         read_limited(io::stdin().lock(), 4096)?
                     } else {
                         eprintln!("Open {} and sign in.", auth::LOGIN_URL);
-                        rpassword::prompt_password("Paste email:CODE (hidden): ")?
+                        let Some(credential) = auth::read_credential()? else {
+                            return Ok(None);
+                        };
+                        credential
                     };
                     let token = auth::redeem(http, &credential)?;
                     auth::save(dir, token)?;

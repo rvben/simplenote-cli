@@ -9,6 +9,7 @@ release:
 test:
 	cargo test --locked
 	python3 scripts/smoke-tui-pty.py
+	python3 scripts/smoke-login-pty.py
 
 lint:
 	cargo fmt -- --check

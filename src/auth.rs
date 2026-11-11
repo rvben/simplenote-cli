@@ -1,4 +1,6 @@
 use crate::{Error, api::Http};
+mod prompt;
+pub(crate) use prompt::read_credential;
 use serde::{Deserialize, Serialize};
 use std::{
     fs::{self, OpenOptions},
@@ -98,18 +100,9 @@ pub fn logout(dir: &Path) -> Result<bool, Error> {
     }
 }
 pub fn redeem(http: &Http, credential: &str) -> Result<String, Error> {
-    let (username, code) = credential
-        .trim()
-        .rsplit_once(':')
-        .ok_or_else(|| Error::usage("Expected the browser credential in email:CODE form."))?;
-    if username.trim().is_empty() || code.trim().is_empty() {
-        return Err(Error::usage(
-            "Expected the browser credential in email:CODE form.",
-        ));
-    }
-    let body = http.login(
-        serde_json::json!({"username": username.trim(), "auth_code": code.trim().to_uppercase()}),
-    )?;
+    let (username, code) = credential_parts(credential)?;
+    let body =
+        http.login(serde_json::json!({"username": username, "auth_code": code.to_uppercase()}))?;
     ["sync_token", "syncToken", "token"]
         .iter()
         .find_map(|k| {
@@ -119,4 +112,17 @@ pub fn redeem(http: &Http, credential: &str) -> Result<String, Error> {
                 .map(str::to_owned)
         })
         .ok_or_else(|| Error::new("invalid_response", "Login did not return a sync token."))
+}
+
+fn credential_parts(credential: &str) -> Result<(&str, &str), Error> {
+    let (username, code) = credential
+        .trim()
+        .rsplit_once(':')
+        .ok_or_else(|| Error::usage("Expected the browser credential in email:CODE form."))?;
+    if username.trim().is_empty() || code.trim().is_empty() {
+        return Err(Error::usage(
+            "Expected the browser credential in email:CODE form.",
+        ));
+    }
+    Ok((username.trim(), code.trim()))
 }

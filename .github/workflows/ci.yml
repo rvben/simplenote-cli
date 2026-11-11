@@ -34,6 +34,7 @@ jobs:
       - run: cargo clippy --locked --all-targets -- -D warnings
       - run: cargo test --locked
       - run: python scripts/smoke-tui-pty.py
+      - run: python scripts/smoke-login-pty.py
 
   msrv:
     name: Rust 1.90
