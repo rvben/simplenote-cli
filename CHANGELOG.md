@@ -8,6 +8,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Changed
 
+- Polish terminal output with compact note cards, readable note bodies, UTC dates,
+  clear write outcomes, actionable errors, and pagination commands. Respect
+  `NO_COLOR` and `TERM=dumb`; preserve JSON and exact `notes cat` output.
 - Show masked feedback while entering a browser login credential, with Ctrl+R
   to show/hide, Backspace to edit, Ctrl+U to clear, and Esc/Ctrl+C/Ctrl+D to cancel.
   Clear the input line before submission and cancellation.

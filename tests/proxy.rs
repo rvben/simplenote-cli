@@ -366,7 +366,12 @@ fn both_cli_commands_list_and_login_through_a_trusted_https_proxy() {
         env!("CARGO_BIN_EXE_simplenote"),
         env!("CARGO_BIN_EXE_simplenote-cli"),
     ] {
-        for login in [false, true] {
+        for (login, format) in [
+            (false, "json"),
+            (true, "json"),
+            (false, "text"),
+            (true, "text"),
+        ] {
             let config = config.clone();
             let (address, worker) = server(move |mut stream| {
                 let connect = headers(&mut stream);
@@ -407,7 +412,10 @@ fn both_cli_commands_list_and_login_through_a_trusted_https_proxy() {
                             .to_ascii_lowercase()
                             .contains("x-simperium-token: private-simperium-token")
                     );
-                    reply(&mut tls, r#"{"index":[]}"#);
+                    reply(
+                        &mut tls,
+                        r#"{"index":[{"id":"fixture-note","v":7,"d":{"content":"Travel plans\n\nA quiet weekend.","tags":["travel"],"systemTags":["pinned"],"deleted":false,"modificationDate":1735779600}}]}"#,
+                    );
                 }
             });
             let directory = tempfile::tempdir().unwrap();
@@ -432,7 +440,7 @@ fn both_cli_commands_list_and_login_through_a_trusted_https_proxy() {
                 .env("NO_PROXY", "")
                 .env("SSL_CERT_FILE", bundle.path())
                 .env("SIMPLENOTE_CONFIG_DIR", directory.path())
-                .args(["--output", "json"]);
+                .args(["--output", format]);
             if login {
                 command.args(["auth", "login", "--code-stdin"]);
             } else {
@@ -459,15 +467,34 @@ fn both_cli_commands_list_and_login_through_a_trusted_https_proxy() {
             assert!(output.status.success(), "{output:?}");
             assert!(output.stderr.is_empty(), "{output:?}");
             assert!(!String::from_utf8_lossy(&output.stdout).contains("private-simperium-token"));
-            let result: Value = serde_json::from_slice(&output.stdout).unwrap();
+            if format == "json" {
+                let result: Value = serde_json::from_slice(&output.stdout).unwrap();
+                if login {
+                    assert_eq!(result["authenticated"], true);
+                } else {
+                    assert_eq!(result["items"][0]["id"], "fixture-note");
+                    assert_eq!(result["items"][0]["title"], "Travel plans");
+                }
+            } else {
+                let text = String::from_utf8(output.stdout).unwrap();
+                assert!(!text.contains('\x1b'));
+                assert!(text.contains(if login {
+                    "Signed in to Simplenote"
+                } else {
+                    "Travel plans"
+                }));
+                if !login {
+                    assert!(text.contains("fixture-note · v7"));
+                    assert!(text.contains("2025-01-02 01:00 UTC"));
+                    assert!(text.contains("Tags  travel"));
+                    assert!(!text.contains("A quiet weekend."));
+                }
+            }
             if login {
-                assert_eq!(result["authenticated"], true);
                 assert_eq!(
                     simplenote_cli::auth::read(directory.path()).unwrap(),
                     "private-simperium-token"
                 );
-            } else {
-                assert_eq!(result["items"], json!([]));
             }
         }
     }

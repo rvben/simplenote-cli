@@ -289,7 +289,14 @@ simplenote-cli completions zsh
 ```
 
 `--output auto|json|text` / `-o` is global. Auto uses readable text on a terminal
-and JSON otherwise. Data goes to stdout; diagnostics go to stderr. In JSON mode,
+and JSON otherwise. Terminal output uses compact note cards, clear result headings,
+readable note bodies, and dates in UTC. Empty results and pagination include next
+steps; previews and retained recovery drafts are clearly marked. Color is limited
+to interactive terminals; set `NO_COLOR` or `TERM=dumb` to disable it. Use
+`--fields` to choose the metadata shown in lists, search, and history.
+
+Data goes to stdout; diagnostics go to stderr. JSON and exact `notes cat` output
+keep their existing formats. In JSON mode,
 the last stderr line on failure is an `error` object with `kind`, `message`,
 `exit_code`, and `hint`. No telemetry is sent by this client.
 

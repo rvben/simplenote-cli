@@ -10,6 +10,7 @@ test:
 	cargo test --locked
 	python3 scripts/smoke-tui-pty.py
 	python3 scripts/smoke-login-pty.py
+	python3 scripts/smoke-output-pty.py
 
 lint:
 	cargo fmt -- --check

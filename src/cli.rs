@@ -19,6 +19,7 @@ use std::{
     subcommand_required = true
 )]
 pub struct Cli {
+    /// Output format. Auto uses readable text in terminals and JSON when piped.
     #[arg(long, short = 'o', value_enum, default_value = "auto", global = true)]
     pub output: Output,
     #[command(subcommand)]
@@ -77,7 +78,7 @@ pub enum Command {
 }
 #[derive(Subcommand)]
 pub enum AuthCommand {
-    /// Show the browser login URL, or redeem a code from stdin without echoing it.
+    /// Sign in through your browser, then paste the one-time credential.
     Login {
         /// Read email:CODE from stdin. Otherwise prompt only on a terminal.
         #[arg(long)]
@@ -237,7 +238,7 @@ pub fn execute(cli: &Cli, http: &Http, dir: &Path) -> Result<Option<Value>, Erro
                     let credential = if *code_stdin {
                         read_limited(io::stdin().lock(), 4096)?
                     } else {
-                        eprintln!("Open {} and sign in.", auth::LOGIN_URL);
+                        crate::output::login_intro(&mut io::stderr().lock())?;
                         let Some(credential) = auth::read_credential()? else {
                             return Ok(None);
                         };
@@ -499,34 +500,10 @@ fn export(api: &Api<'_>, directory: &Path) -> Result<Value, Error> {
 pub fn render(value: &Value, json: bool, writer: &mut impl Write) -> Result<(), Error> {
     if json {
         writeln!(writer, "{value}")?;
-    } else if let Some(items) = value["items"].as_array() {
-        for item in items {
-            if let Some(object) = item.as_object() {
-                let cells: Vec<String> = object
-                    .iter()
-                    .map(|(k, v)| format!("{k}: {}", text_value(v)))
-                    .collect();
-                writeln!(writer, "{}", cells.join("\t"))?;
-            }
-        }
-        if let Some(count) = value["skipped_irregular"].as_u64().filter(|n| *n > 0) {
-            writeln!(
-                writer,
-                "Skipped malformed records: {count} (preserved by export)"
-            )?;
-        }
-        if let Some(cursor) = value["next_cursor"].as_str() {
-            writeln!(writer, "Next cursor: {}", safe_text(cursor))?;
-        }
-    } else if let Some(object) = value.as_object() {
-        for (key, value) in object {
-            writeln!(writer, "{key}: {}", text_value(value))?;
-        }
+    } else {
+        crate::output::render(value, None, crate::output::Appearance::plain(80), writer)?;
     }
     Ok(())
-}
-fn text_value(value: &Value) -> String {
-    value.as_str().map_or_else(|| value.to_string(), safe_text)
 }
 pub(crate) fn safe_text(text: &str) -> String {
     text.chars()

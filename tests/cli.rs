@@ -53,7 +53,7 @@ fn explicit_text_parse_error_has_no_json() {
         ["--output=text", "unknown"].as_slice(),
     ] {
         let out = run(args);
-        assert!(String::from_utf8_lossy(&out.stderr).starts_with("usage:"));
+        assert!(String::from_utf8_lossy(&out.stderr).starts_with("Usage error\n"));
     }
 }
 #[test]

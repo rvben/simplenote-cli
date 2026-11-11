@@ -43,6 +43,7 @@ shell-words = "1.1"
 ratatui = { version = "0.30", default-features = false, features = ["crossterm", "unstable-rendered-line-info"] }
 crossterm = "0.29"
 unicode-width = "0.2"
+time = "0.3"
 
 [dev-dependencies]
 rcgen = "0.14"

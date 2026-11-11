@@ -4,6 +4,7 @@ use simplenote_cli::{
     api::Http,
     auth,
     cli::{Cli, Command, Output, execute, render},
+    output::{self, Appearance},
 };
 use std::{
     io::{self, IsTerminal, Write},
@@ -93,7 +94,16 @@ fn main() -> ExitCode {
         let http = Http::new()?;
         let dir = auth::config_dir()?;
         if let Some(value) = execute(&cli, &http, &dir)? {
-            render(&value, cli.output.json(), &mut io::stdout().lock())?;
+            if cli.output.json() {
+                render(&value, true, &mut io::stdout().lock())?;
+            } else {
+                output::render(
+                    &value,
+                    Some(&cli.command),
+                    Appearance::stdout(),
+                    &mut io::stdout().lock(),
+                )?;
+            }
         }
         Ok(())
     })();
@@ -106,7 +116,7 @@ fn fail(error: Error, json: bool) -> ExitCode {
     if json {
         let _ = writeln!(io::stderr(), "{}", error.envelope());
     } else {
-        let _ = writeln!(io::stderr(), "{}: {}", error.kind, error.message);
+        let _ = output::render_error(&error, Appearance::stderr(), &mut io::stderr().lock());
     }
     if io::stdout().is_terminal() {
         let _ = io::stdout().flush();
