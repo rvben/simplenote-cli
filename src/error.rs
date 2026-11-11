@@ -61,7 +61,7 @@ impl Error {
             match self.kind {
                 "auth" => "Run simplenote-cli auth login, or set SIMPLENOTE_TOKEN.",
                 "network" => {
-                    "The outcome of a write may be unknown. Read the note before retrying; creates print their ID to stderr before sending."
+                    "Check HTTPS_PROXY/ALL_PROXY, NO_PROXY, system proxy settings, and certificate trust. HTTP_PROXY alone does not cover HTTPS. Before retrying a write, read the note to check its outcome."
                 }
                 "rate_limited" => "Wait before retrying. Do not repeatedly redeem a login code.",
                 "conflict" => "Read the latest note and review your edit before trying again.",

@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Fixed
+
+- Enable SOCKS proxies and macOS/Windows system HTTP/HTTPS proxy discovery for
+  API, login, and TUI requests. Trust system and custom PEM CAs alongside bundled
+  public roots, and explain common proxy and TLS failures without leaking secrets.
+
 ## [0.2.1](https://github.com/rvben/simplenote-cli/compare/v0.2.0...v0.2.1) - 2026-11-10
 
 ### Added

@@ -64,6 +64,51 @@ do not apply there. No credentials are borrowed from another application.
 service. `auth logout` removes this CLI's file; it does not revoke the server's
 token, sign out other devices, or clear `SIMPLENOTE_TOKEN`.
 
+## Proxies and certificate trust
+
+All API requests, login-code redemption, and TUI requests use the same proxy
+configuration. Set proxy environment variables in the shell that launches the CLI:
+
+```sh
+# HTTPS through an HTTP proxy (CONNECT tunneling)
+HTTPS_PROXY=http://127.0.0.1:8080 simplenote notes list
+
+# SOCKS5, with destination DNS resolved by the proxy
+ALL_PROXY=socks5h://127.0.0.1:1080 simplenote notes list
+
+# Bypass proxies for selected hosts, or use NO_PROXY='*' to bypass all
+NO_PROXY=api.simperium.com,app.simplenote.com simplenote notes list
+```
+
+`HTTPS_PROXY` applies to HTTPS requests; `HTTP_PROXY` applies only to HTTP, so it
+alone does not cover Simplenote's endpoints. `ALL_PROXY` supplies a fallback for
+both. Lowercase variants (`https_proxy`, `http_proxy`, `all_proxy`, `no_proxy`)
+are also supported; uppercase takes precedence when both are set. `NO_PROXY`
+accepts a comma-separated list of hosts, domains, or IP addresses. On macOS and
+Windows, manual system HTTP/HTTPS proxy settings are also discovered. Set the
+protocol-specific environment variable to override its system setting. Automatic
+proxy configuration scripts (PAC/WPAD) are not evaluated.
+
+HTTP/HTTPS and SOCKS proxies are supported. For SOCKS5, `socks5://` resolves
+destination names locally; `socks5h://` resolves them through the proxy. Proxy URLs
+can include URL-encoded credentials (`scheme://user:password@host:port`). HTTP
+proxies support Basic authentication; integrated NTLM/Kerberos authentication is
+not provided. Keep proxy credentials out of shell history and shared diagnostics.
+
+TLS verification uses bundled public roots plus certificates from the system
+trust store. If a corporate proxy inspects HTTPS, install its CA in that store,
+or supply a PEM CA bundle:
+
+```sh
+SSL_CERT_FILE=/path/to/company-ca.pem simplenote notes list
+```
+
+`SSL_CERT_FILE` and `SSL_CERT_DIR` override the system certificate locations;
+bundled public roots remain available. Certificate and hostname verification stay
+enabled. Connection errors identify common proxy, authentication, DNS, and TLS
+failures without printing raw errors or credentials. Requests are not retried
+automatically; after a failed write, check the note before retrying.
+
 ## Interactive workspace
 
 ```sh

@@ -57,10 +57,46 @@ impl Http {
     }
 }
 fn network(error: reqwest::Error) -> Error {
+    use std::error::Error as _;
+
+    // Inspect causes only to select fixed messages. Never print the source chain:
+    // it can contain proxy credentials, request URLs, or other private data.
+    let mut certificate = false;
+    let mut proxy_auth = false;
+    let mut tunnel = false;
+    let mut socks = false;
+    let mut refused = false;
+    let mut dns = false;
+    let mut source = error.source();
+    while let Some(cause) = source {
+        let message = cause.to_string().to_ascii_lowercase();
+        certificate |= message.contains("certificate");
+        proxy_auth |= message.contains("proxy authorization required")
+            || message.contains("proxy authentication required");
+        tunnel |= message.contains("tunnel error");
+        socks |= message.contains("socks");
+        dns |= message.contains("dns error") || message.contains("failed to lookup address");
+        refused |= cause
+            .downcast_ref::<std::io::Error>()
+            .is_some_and(|e| e.kind() == std::io::ErrorKind::ConnectionRefused);
+        source = cause.source();
+    }
     let cause = if error.is_timeout() {
         "Request timed out"
+    } else if certificate {
+        "TLS certificate verification failed. If your proxy inspects HTTPS, install its CA in the system trust store or set SSL_CERT_FILE to a PEM CA bundle"
+    } else if proxy_auth {
+        "Proxy authentication required (HTTP 407). Check the credentials in your proxy configuration"
+    } else if socks {
+        "SOCKS proxy connection failed. Check the proxy address, authentication, and DNS settings; socks5h:// resolves destination names through the proxy"
+    } else if refused {
+        "Connection refused. Check that the service or configured proxy is reachable and listening"
+    } else if dns {
+        "DNS lookup failed. Check your network and proxy hostname; socks5h:// resolves destination names through the proxy"
+    } else if tunnel {
+        "Proxy tunnel failed. Check that the proxy allows HTTPS CONNECT to the Simplenote endpoints"
     } else if error.is_connect() {
-        "Could not establish a connection"
+        "Could not establish a connection. Check your network, proxy settings, and TLS trust configuration"
     } else {
         "Request failed"
     };
@@ -76,6 +112,12 @@ fn checked(res: Response, login: bool) -> Result<Response, Error> {
     let status = res.status().as_u16();
     if (200..300).contains(&status) {
         return Ok(res);
+    }
+    if status == 407 {
+        return Err(Error::new(
+            "network",
+            "Proxy authentication required (HTTP 407). Check the credentials in your proxy configuration; no automatic retry was attempted.",
+        ));
     }
     let kind = match status {
         400 if login => "auth",
